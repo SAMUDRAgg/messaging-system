@@ -11,22 +11,27 @@ import org.springframework.stereotype.Service;
 
 import java.util.Optional;
 
-
 @Service
 public class MyUserDetailsService implements UserDetailsService {
+
     @Autowired
     private UserRepo userRepo;
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        // Try finding by username
+        Optional<User> user = userRepo.findByUsername(identifier);
 
+        // If not found, try email
+        if (user.isEmpty()) {
+            user = userRepo.findByEmail(identifier);
+        }
 
-        Optional<User> user = userRepo.findByUsername(username);
+        // If still not found, throw exception
         if (user.isPresent()) {
-
-            return new UserPrincipal(user);
+            return new UserPrincipal(user.get());
         } else {
-            throw new UsernameNotFoundException("user not found");
+            throw new UsernameNotFoundException("User not found with username/email: " + identifier);
         }
     }
 }

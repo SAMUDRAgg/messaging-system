@@ -1,7 +1,8 @@
 package com.SAMUDRA.messaging_system.Service;
 
-import org.springframework.stereotype.Service;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,40 +16,25 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import io.jsonwebtoken.Jwts;
-
-import static io.jsonwebtoken.Jwts.builder;
 
 @Service
 public class JwtService {
-    private String secretKey;
-    public JwtService(){
-        secretKey=generateSecrectKey();
+
+    private final String secretKey;
+
+    public JwtService() {
+        this.secretKey = generateSecretKey();
+        System.out.println("🔐 Generated new JWT secret key for this session: " + secretKey);
     }
 
-    public String generateSecrectKey(){
+    private String generateSecretKey() {
         try {
-            KeyGenerator keyGenerator= KeyGenerator.getInstance("HmacSHA256");
-            SecretKey secretKey=keyGenerator.generateKey();
+            KeyGenerator keyGenerator = KeyGenerator.getInstance("HmacSHA256");
+            SecretKey secretKey = keyGenerator.generateKey();
             return Base64.getEncoder().encodeToString(secretKey.getEncoded());
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error generating secret key", e);
         }
-    }
-
-
-    public String generateToken(String username) {
-        Map<String, Object> claims = new HashMap<>();
-
-        String token = Jwts.builder()
-                .setClaims(claims)
-                .setSubject(username)
-                .setIssuedAt(new Date(System.currentTimeMillis()))
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 15)) // 15 min expiry
-                .signWith(getKey(), Jwts.SIG.HS256)
-                .compact();
-
-        return token;
     }
 
     private SecretKey getKey() {
@@ -56,29 +42,48 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
+    public String generateToken(String username) {
+        Map<String, Object> claims = new HashMap<>();
+
+        return Jwts.builder()
+                .claims(claims)
+                .subject(username)
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 15)) // 15 minutes
+                .signWith(getKey())
+                .compact();
+    }
+
     public String extractUserName(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
-    private <T> T extractClaim(String token, Function<Claims,T> claimResolver) {
-
-        final Claims claims= extractAllClaims(token);
+    private <T> T extractClaim(String token, Function<Claims, T> claimResolver) {
+        final Claims claims = extractAllClaims(token);
         return claimResolver.apply(claims);
     }
 
     private Claims extractAllClaims(String token) {
-        return Jwts.parser()
-                .verifyWith(getKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-
+        try {
+            return Jwts.parser()
+                    .verifyWith(getKey())
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (ExpiredJwtException e) {
+            throw new JwtException("Token expired", e);
+        } catch (JwtException e) {
+            throw new JwtException("Invalid token", e);
+        }
     }
 
     public boolean validateToken(String token, UserDetails userDetails) {
-
-        final String userName=extractUserName(token);
-        return (userName.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        try {
+            final String username = extractUserName(token);
+            return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+        } catch (JwtException e) {
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
@@ -86,6 +91,6 @@ public class JwtService {
     }
 
     private Date extractExpiration(String token) {
-        return extractClaim(token,Claims::getExpiration);
+        return extractClaim(token, Claims::getExpiration);
     }
 }

@@ -1,22 +1,18 @@
 package com.SAMUDRA.messaging_system.DAO;
 
 import org.springframework.security.core.userdetails.UserDetails;
-
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-
 
 import java.util.Collection;
 import java.util.Collections;
 
-import java.util.Optional;
-
 public class UserPrincipal implements UserDetails {
-    private User user;
+    private final User user;
 
-    public UserPrincipal(Optional<User> user) {
-        this.user=user.get();
-
+    // Accept User directly
+    public UserPrincipal(User user) {
+        this.user = user;
     }
 
     @Override
@@ -51,6 +47,6 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return user.isEnabled(); // use the actual enabled field from User
     }
 }

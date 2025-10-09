@@ -36,6 +36,12 @@ public class AppConfig {
         this.userDetailsService = userDetailsService;
     }
 
+    // PasswordEncoder Bean (Reused anywhere)
+    @Bean
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(12);
+    }
+
     // Authentication Manager Bean
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -47,7 +53,7 @@ public class AppConfig {
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
         provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(new BCryptPasswordEncoder(12));
+        provider.setPasswordEncoder(passwordEncoder()); // Reusing bean
         return provider;
     }
 
@@ -66,13 +72,13 @@ public class AppConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         );
 
-        // Attach JWT Filter before UsernamePasswordAuthenticationFilter
+        // Attach JWT Filter
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
-        // Add CORS Configuration
+        // CORS
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()));
 
-        // Add Exception Handling (Handles Unauthorized & Access Denied)
+        // Exception Handling
         http.exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(401);
@@ -93,7 +99,7 @@ public class AppConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(Collections.singletonList("http://localhost:3000")); // fixed trailing slash
+        cfg.setAllowedOrigins(Collections.singletonList("http://localhost:3000")); // no trailing slash
         cfg.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         cfg.setAllowCredentials(true);
         cfg.setAllowedHeaders(Collections.singletonList("*"));
