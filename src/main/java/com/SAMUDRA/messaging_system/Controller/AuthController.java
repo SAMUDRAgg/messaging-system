@@ -13,10 +13,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
-
+@RequestMapping("/api/auth")
 public class AuthController {
 
     @Autowired
@@ -28,31 +27,23 @@ public class AuthController {
     @Autowired
     private UserService userService;
 
-    /**
-     * User Registration Endpoint
-     */
+    // ------------------ User Registration ------------------
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> registerUser(@RequestBody User user) {
-        Optional<User> savedUser = userService.addUser(user);
+        User savedUser = userService.addUser(user); // throws UserException if user exists
 
         Map<String, String> response = new HashMap<>();
-        if (savedUser.isPresent()) {
-            response.put("message", "User registered successfully");
-            return ResponseEntity.ok(response);
-        } else {
-            response.put("error", "User already exists");
-            return ResponseEntity.badRequest().body(response);
-        }
+        response.put("message", "User registered successfully");
+        response.put("username", savedUser.getUsername());
+        response.put("email", savedUser.getEmail());
+        return ResponseEntity.ok(response);
     }
 
-    /**
-     * User Login Endpoint (supports email or username)
-     */
+    // ------------------ User Login (username or email) ------------------
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> loginUser(@RequestBody User user) {
         try {
-            // ✅ Allow login using username OR email
-            String loginIdentifier = (user.getEmail() != null && !user.getEmail().isEmpty())
+            String loginIdentifier = (user.getEmail() != null && !user.getEmail().isBlank())
                     ? user.getEmail()
                     : user.getUsername();
 
@@ -63,19 +54,17 @@ public class AuthController {
                     )
             );
 
-            if (authentication.isAuthenticated()) {
-                String token = jwtService.generateToken(loginIdentifier);
+            String token = jwtService.generateToken(loginIdentifier);
 
-                Map<String, String> response = new HashMap<>();
-                response.put("message", "Login successful");
-                response.put("token", token);
-                return ResponseEntity.ok(response);
-            } else {
-                return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
-            }
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Login successful");
+            response.put("token", token);
+            return ResponseEntity.ok(response);
 
         } catch (AuthenticationException e) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+            Map<String, String> response = new HashMap<>();
+            response.put("error", "Invalid credentials");
+            return ResponseEntity.status(401).body(response);
         }
     }
 }
