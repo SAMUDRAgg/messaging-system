@@ -9,29 +9,28 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-
 @Service
 public class MyUserDetailsService implements UserDetailsService {
 
+    private final UserRepo userRepo;
+
     @Autowired
-    private UserRepo userRepo;
+    public MyUserDetailsService(UserRepo userRepo) {
+        this.userRepo = userRepo;
+    }
 
     @Override
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
-        // Try finding by username
-        Optional<User> user = userRepo.findByUsername(identifier);
+        // ✅ Try username first, then email
+        User user = userRepo.findByUsername(identifier)
+                .or(() -> userRepo.findByEmail(identifier))
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "User not found with username/email: " + identifier));
 
-        // If not found, try email
-        if (user.isEmpty()) {
-            user = userRepo.findByEmail(identifier);
+        if (!user.isEnabled()) {
+            throw new UsernameNotFoundException("User account is disabled: " + identifier);
         }
 
-        // If still not found, throw exception
-        if (user.isPresent()) {
-            return new UserPrincipal(user.get());
-        } else {
-            throw new UsernameNotFoundException("User not found with username/email: " + identifier);
-        }
+        return new UserPrincipal(user);
     }
 }

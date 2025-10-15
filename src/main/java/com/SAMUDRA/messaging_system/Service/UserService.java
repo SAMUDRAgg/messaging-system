@@ -1,10 +1,8 @@
 package com.SAMUDRA.messaging_system.Service;
 
 import com.SAMUDRA.messaging_system.DAO.User;
-import com.SAMUDRA.messaging_system.DTO.UpdateUserRequest;
 import com.SAMUDRA.messaging_system.Exception.UserException;
 import com.SAMUDRA.messaging_system.Repo.UserRepo;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -15,64 +13,73 @@ import java.util.List;
 @Service
 public class UserService {
 
-    @Autowired
-    private UserRepo userRepo;
+    private final UserRepo userRepo;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     @Autowired
-    private BCryptPasswordEncoder passwordEncoder;
+    public UserService(UserRepo userRepo, BCryptPasswordEncoder passwordEncoder) {
+        this.userRepo = userRepo;
+        this.passwordEncoder = passwordEncoder;
+    }
 
-    // ------------------ Register New User ------------------
+    // ------------------ Register ------------------
     public User addUser(User user) {
-        boolean userExists = userRepo.findByUsername(user.getUsername()).isPresent() ||
+        boolean exists = userRepo.findByUsername(user.getUsername()).isPresent() ||
                 userRepo.findByEmail(user.getEmail()).isPresent();
 
-        if (userExists) {
+        if (exists) {
             throw new UserException("Username or email already exists", HttpStatus.CONFLICT);
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setEnabled(true);
         return userRepo.save(user);
     }
 
-    // ------------------ Find User ------------------
+    // ------------------ Find by username or email ------------------
     public User findByUsernameOrEmail(String identifier) {
-        return userRepo.findByEmail(identifier)
-                .or(() -> userRepo.findByUsername(identifier))
+        return userRepo.findByUsername(identifier)
+                .or(() -> userRepo.findByEmail(identifier))
                 .orElseThrow(() -> new UserException(
-                        "User not found with username or email: " + identifier,
+                        "User not found with username/email: " + identifier,
                         HttpStatus.NOT_FOUND
                 ));
     }
 
-    // ------------------ Update User ------------------
-    public User updateUser(String identifier, UpdateUserRequest request) {
+    // ------------------ Login and Generate JWT ------------------
+    public String login(String identifier, String password, JwtService jwtService) {
+        // Find user by username OR email
         User user = findByUsernameOrEmail(identifier);
 
-        boolean updated = false;
-
-        if (request.getUsername() != null && !request.getUsername().isBlank()) {
-            user.setUsername(request.getUsername());
-            updated = true;
+        // Verify password
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new UserException("Invalid password", HttpStatus.UNAUTHORIZED);
         }
 
-        if (request.getEmail() != null && !request.getEmail().isBlank()) {
-            user.setEmail(request.getEmail());
-            updated = true;
+        // Check if user is enabled
+        if (!user.isEnabled()) {
+            throw new UserException("User account is disabled", HttpStatus.UNAUTHORIZED);
         }
 
-        if (request.getProfilePicUrl() != null && !request.getProfilePicUrl().isBlank()) {
-            user.setProfilePicUrl(request.getProfilePicUrl());
-            updated = true;
-        }
+        // ⚡ Generate JWT using username (not email)
+        return jwtService.generateToken(user.getUsername());
+    }
 
-        if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
-            updated = true;
-        }
+    // ------------------ Update User ------------------
+    public User updateUser(String identifier, User updatedUser) {
+        User user = findByUsernameOrEmail(identifier);
 
-        if (!updated) {
-            throw new UserException("No valid fields provided to update", HttpStatus.BAD_REQUEST);
-        }
+        if (updatedUser.getUsername() != null && !updatedUser.getUsername().isBlank())
+            user.setUsername(updatedUser.getUsername());
+
+        if (updatedUser.getEmail() != null && !updatedUser.getEmail().isBlank())
+            user.setEmail(updatedUser.getEmail());
+
+        if (updatedUser.getPassword() != null && !updatedUser.getPassword().isBlank())
+            user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+
+        if (updatedUser.getProfilePicUrl() != null && !updatedUser.getProfilePicUrl().isBlank())
+            user.setProfilePicUrl(updatedUser.getProfilePicUrl());
 
         return userRepo.save(user);
     }
