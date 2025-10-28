@@ -34,16 +34,5 @@ public class MyUserDetailsService implements UserDetailsService {
         return new UserPrincipal(user);
     }
 
-    // 🔹 Custom method — load by User ID (for JWT refresh or internal use)
-    public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
-        User user = userRepo.findById(userId)
-                .orElseThrow(() ->
-                        new UsernameNotFoundException("User not found with ID: " + userId));
 
-        if (!user.isEnabled()) {
-            throw new UsernameNotFoundException("User account is disabled: " + userId);
-        }
-
-        return new UserPrincipal(user);
-    }
 }

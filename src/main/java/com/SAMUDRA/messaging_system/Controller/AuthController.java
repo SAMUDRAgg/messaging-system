@@ -1,6 +1,7 @@
 package com.SAMUDRA.messaging_system.Controller;
 
 import com.SAMUDRA.messaging_system.DAO.User;
+import com.SAMUDRA.messaging_system.DAO.UserPrincipal;
 import com.SAMUDRA.messaging_system.Service.JwtService;
 import com.SAMUDRA.messaging_system.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,8 +54,8 @@ public class AuthController {
                     )
             );
 
-            // ✅ Fetch actual user to get full info
-            User loggedInUser = userService.findByUsernameOrEmail(loginIdentifier);
+            UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+            User loggedInUser = principal.getUser();
 
             // ✅ Generate token using userId, username & email
             String token = jwtService.generateToken(

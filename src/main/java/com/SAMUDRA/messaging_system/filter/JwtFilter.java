@@ -17,7 +17,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -30,6 +32,10 @@ public class JwtFilter extends OncePerRequestFilter {
 
     @Autowired
     private UserRepo userRepo;
+
+    // ⚡ Add in-memory caches to prevent repeated DB hits
+    private static final Map<Long, User> userCache = new ConcurrentHashMap<>();
+    private static final Map<String, UserDetails> userDetailsCache = new ConcurrentHashMap<>();
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -52,10 +58,16 @@ public class JwtFilter extends OncePerRequestFilter {
 
         // 2️⃣ Validate and set authentication
         if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            Optional<User> userOpt = userRepo.findById(userId);
-            if (userOpt.isPresent()) {
-                User user = userOpt.get();
-                UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
+            // ⚡ Check cache before hitting DB
+            User user = userCache.computeIfAbsent(userId, id ->
+                    userRepo.findById(id).orElse(null)
+            );
+
+            if (user != null) {
+                // ⚡ Cache userDetails too, avoid loadUserByUsername() hit every time
+                UserDetails userDetails = userDetailsCache.computeIfAbsent(user.getUsername(), uname ->
+                        userDetailsService.loadUserByUsername(uname)
+                );
 
                 if (jwtService.validateToken(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken =
