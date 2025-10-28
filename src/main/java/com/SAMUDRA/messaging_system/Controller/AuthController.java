@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-
 public class AuthController {
 
     @Autowired
@@ -30,7 +29,7 @@ public class AuthController {
     // ------------------ User Registration ------------------
     @PostMapping("/register")
     public ResponseEntity<Map<String, String>> registerUser(@RequestBody User user) {
-        User savedUser = userService.addUser(user); // throws UserException if user exists
+        User savedUser = userService.addUser(user);
 
         Map<String, String> response = new HashMap<>();
         response.put("message", "User registered successfully");
@@ -54,11 +53,22 @@ public class AuthController {
                     )
             );
 
-            String token = jwtService.generateToken(loginIdentifier);
+            // ✅ Fetch actual user to get full info
+            User loggedInUser = userService.findByUsernameOrEmail(loginIdentifier);
+
+            // ✅ Generate token using userId, username & email
+            String token = jwtService.generateToken(
+                    loggedInUser.getId(),
+                    loggedInUser.getUsername(),
+                    loggedInUser.getEmail()
+            );
 
             Map<String, String> response = new HashMap<>();
             response.put("message", "Login successful");
             response.put("token", token);
+            response.put("userId", String.valueOf(loggedInUser.getId()));
+            response.put("username", loggedInUser.getUsername());
+            response.put("email", loggedInUser.getEmail());
             return ResponseEntity.ok(response);
 
         } catch (AuthenticationException e) {

@@ -48,21 +48,18 @@ public class UserService {
 
     // ------------------ Login and Generate JWT ------------------
     public String login(String identifier, String password, JwtService jwtService) {
-        // Find user by username OR email
         User user = findByUsernameOrEmail(identifier);
 
-        // Verify password
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new UserException("Invalid password", HttpStatus.UNAUTHORIZED);
         }
 
-        // Check if user is enabled
         if (!user.isEnabled()) {
             throw new UserException("User account is disabled", HttpStatus.UNAUTHORIZED);
         }
 
-        // ⚡ Generate JWT using username (not email)
-        return jwtService.generateToken(user.getUsername());
+        // ✅ Call your updated generateToken()
+        return jwtService.generateToken(user.getId(), user.getUsername(), user.getEmail());
     }
 
     // ------------------ Update User ------------------

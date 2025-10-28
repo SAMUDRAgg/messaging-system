@@ -19,16 +19,29 @@ public class MyUserDetailsService implements UserDetailsService {
         this.userRepo = userRepo;
     }
 
+    // 🔹 Used by Spring Security (username or email)
     @Override
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
-        // ✅ Try username first, then email
         User user = userRepo.findByUsername(identifier)
                 .or(() -> userRepo.findByEmail(identifier))
-                .orElseThrow(() -> new UsernameNotFoundException(
-                        "User not found with username/email: " + identifier));
+                .orElseThrow(() ->
+                        new UsernameNotFoundException("User not found with username/email: " + identifier));
 
         if (!user.isEnabled()) {
             throw new UsernameNotFoundException("User account is disabled: " + identifier);
+        }
+
+        return new UserPrincipal(user);
+    }
+
+    // 🔹 Custom method — load by User ID (for JWT refresh or internal use)
+    public UserDetails loadUserById(Long userId) throws UsernameNotFoundException {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() ->
+                        new UsernameNotFoundException("User not found with ID: " + userId));
+
+        if (!user.isEnabled()) {
+            throw new UsernameNotFoundException("User account is disabled: " + userId);
         }
 
         return new UserPrincipal(user);

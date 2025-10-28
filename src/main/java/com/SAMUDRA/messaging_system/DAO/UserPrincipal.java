@@ -10,9 +10,12 @@ import java.util.Collections;
 public class UserPrincipal implements UserDetails {
     private final User user;
 
-    // Accept User directly
     public UserPrincipal(User user) {
         this.user = user;
+    }
+
+    public User getUser() { // ✅ needed for validation
+        return user;
     }
 
     @Override
@@ -47,6 +50,6 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return user.isEnabled(); // use the actual enabled field from User
+        return user.isEnabled();
     }
 }

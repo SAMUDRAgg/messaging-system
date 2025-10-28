@@ -1,5 +1,7 @@
 package com.SAMUDRA.messaging_system.filter;
 
+import com.SAMUDRA.messaging_system.DAO.User;
+import com.SAMUDRA.messaging_system.Repo.UserRepo;
 import com.SAMUDRA.messaging_system.Service.JwtService;
 import com.SAMUDRA.messaging_system.Service.MyUserDetailsService;
 import jakarta.servlet.FilterChain;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Optional;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -25,6 +28,9 @@ public class JwtFilter extends OncePerRequestFilter {
     @Autowired
     private MyUserDetailsService userDetailsService;
 
+    @Autowired
+    private UserRepo userRepo;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -32,39 +38,38 @@ public class JwtFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
         String token = null;
-        String username = null;
+        Long userId = null;
 
-        // 1️⃣ Extract JWT token
+        // 1️⃣ Extract token from header
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
             try {
-                username = jwtService.extractUserName(token); // ⚡ always username
+                userId = jwtService.extractUserId(token);
             } catch (Exception e) {
                 System.out.println("JWT parsing error: " + e.getMessage());
             }
         }
 
-        // 2️⃣ Authenticate user if token is valid
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            try {
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        // 2️⃣ Validate and set authentication
+        if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            Optional<User> userOpt = userRepo.findById(userId);
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
 
                 if (jwtService.validateToken(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
 
-                    System.out.println("JWT authenticated for user: " + username);
+                    System.out.println("✅ Authenticated user: " + user.getUsername());
                 } else {
-                    System.out.println("JWT token is invalid or expired for user: " + username);
+                    System.out.println("❌ Invalid or expired token for user ID: " + userId);
                 }
-            } catch (Exception e) {
-                System.out.println("Error during authentication: " + e.getMessage());
+            } else {
+                System.out.println("❌ No user found for token userId: " + userId);
             }
-        } else if (token != null && username == null) {
-            System.out.println("Username could not be extracted from token");
         }
 
         filterChain.doFilter(request, response);
