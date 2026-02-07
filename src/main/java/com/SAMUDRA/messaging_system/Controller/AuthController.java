@@ -2,6 +2,10 @@ package com.SAMUDRA.messaging_system.Controller;
 
 import com.SAMUDRA.messaging_system.DAO.User;
 import com.SAMUDRA.messaging_system.DAO.UserPrincipal;
+import com.SAMUDRA.messaging_system.DTO.LoginRequest;
+import com.SAMUDRA.messaging_system.DTO.LoginResponse;
+import com.SAMUDRA.messaging_system.DTO.RegisterRequest;
+import com.SAMUDRA.messaging_system.DTO.RegisterResponse;
 import com.SAMUDRA.messaging_system.Service.JwtService;
 import com.SAMUDRA.messaging_system.Service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,10 +16,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-
 @RestController
+
 public class AuthController {
 
     @Autowired
@@ -27,55 +29,68 @@ public class AuthController {
     @Autowired
     private UserService userService;
 
-    // ------------------ User Registration ------------------
+    // ------------------ REGISTER ------------------
     @PostMapping("/register")
-    public ResponseEntity<Map<String, String>> registerUser(@RequestBody User user) {
+    public ResponseEntity<RegisterResponse> register(@RequestBody RegisterRequest request) {
+
+        User user = new User();
+        user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
+        user.setPassword(request.getPassword()); // BCrypt should be applied in service
+        user.setProfilePicUrl(request.getProfilePicUrl());
+
         User savedUser = userService.addUser(user);
 
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "User registered successfully");
-        response.put("username", savedUser.getUsername());
-        response.put("email", savedUser.getEmail());
+        RegisterResponse response = new RegisterResponse(
+                "User registered successfully",
+                savedUser.getId(),
+                savedUser.getUsername(),
+                savedUser.getEmail()
+        );
+
         return ResponseEntity.ok(response);
     }
 
-    // ------------------ User Login (username or email) ------------------
+    // ------------------ LOGIN ------------------
     @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> loginUser(@RequestBody User user) {
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest request) {
+
         try {
-            String loginIdentifier = (user.getEmail() != null && !user.getEmail().isBlank())
-                    ? user.getEmail()
-                    : user.getUsername();
+            String loginIdentifier =
+                    (request.getEmail() != null && !request.getEmail().isBlank())
+                            ? request.getEmail()
+                            : request.getUsername();
 
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             loginIdentifier,
-                            user.getPassword()
+                            request.getPassword()
                     )
             );
 
             UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-            User loggedInUser = principal.getUser();
+            User user = principal.getUser();
 
-            // ✅ Generate token using userId, username & email
             String token = jwtService.generateToken(
-                    loggedInUser.getId(),
-                    loggedInUser.getUsername(),
-                    loggedInUser.getEmail()
+                    user.getId(),
+                    user.getUsername(),
+                    user.getEmail()
             );
 
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "Login successful");
-            response.put("token", token);
-            response.put("userId", String.valueOf(loggedInUser.getId()));
-            response.put("username", loggedInUser.getUsername());
-            response.put("email", loggedInUser.getEmail());
+            LoginResponse response = new LoginResponse(
+                    "Login successful",
+                    token,
+                    user.getId(),
+                    user.getUsername(),
+                    user.getEmail()
+            );
+
             return ResponseEntity.ok(response);
 
-        } catch (AuthenticationException e) {
-            Map<String, String> response = new HashMap<>();
-            response.put("error", "Invalid credentials");
-            return ResponseEntity.status(401).body(response);
+        } catch (AuthenticationException ex) {
+            LoginResponse error = new LoginResponse();
+            error.setMessage("Invalid credentials");
+            return ResponseEntity.status(401).body(error);
         }
     }
 }
