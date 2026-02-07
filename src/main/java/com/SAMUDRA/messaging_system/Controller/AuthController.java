@@ -17,7 +17,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-
+@RequestMapping("/auth")
 public class AuthController {
 
     @Autowired

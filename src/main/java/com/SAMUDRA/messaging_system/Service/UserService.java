@@ -22,13 +22,14 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // ------------------ Register ------------------
+    // ------------------ REGISTER ------------------
     public User addUser(User user) {
-        boolean exists = userRepo.findByUsername(user.getUsername()).isPresent() ||
-                userRepo.findByEmail(user.getEmail()).isPresent();
+        if (userRepo.existsByUsername(user.getUsername())) {
+            throw new UserException("Username already exists", HttpStatus.CONFLICT);
+        }
 
-        if (exists) {
-            throw new UserException("Username or email already exists", HttpStatus.CONFLICT);
+        if (userRepo.existsByEmail(user.getEmail())) {
+            throw new UserException("Email already exists", HttpStatus.CONFLICT);
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
@@ -36,57 +37,80 @@ public class UserService {
         return userRepo.save(user);
     }
 
-    // ------------------ Find by username or email ------------------
+    // ------------------ FIND BY ID (JWT FLOW) ------------------
+    public User findById(Long userId) {
+        return userRepo.findById(userId)
+                .orElseThrow(() ->
+                        new UserException("User not found with id: " + userId, HttpStatus.NOT_FOUND)
+                );
+    }
+
+    // ------------------ FIND BY USERNAME OR EMAIL (LOGIN) ------------------
     public User findByUsernameOrEmail(String identifier) {
-        return userRepo.findByUsername(identifier)
-                .or(() -> userRepo.findByEmail(identifier))
-                .orElseThrow(() -> new UserException(
-                        "User not found with username/email: " + identifier,
-                        HttpStatus.NOT_FOUND
-                ));
+        return userRepo.findByUsernameOrEmail(identifier)
+                .orElseThrow(() ->
+                        new UserException(
+                                "User not found with username/email: " + identifier,
+                                HttpStatus.NOT_FOUND
+                        )
+                );
     }
 
-    // ------------------ Login and Generate JWT ------------------
-    public String login(String identifier, String password, JwtService jwtService) {
-        User user = findByUsernameOrEmail(identifier);
+    // ------------------ UPDATE USER BY ID ------------------
+    public User updateUserById(Long userId, User updatedUser) {
 
-        if (!passwordEncoder.matches(password, user.getPassword())) {
-            throw new UserException("Invalid password", HttpStatus.UNAUTHORIZED);
-        }
+        User user = findById(userId);
 
-        if (!user.isEnabled()) {
-            throw new UserException("User account is disabled", HttpStatus.UNAUTHORIZED);
-        }
+        // Update username
+        if (updatedUser.getUsername() != null &&
+                !updatedUser.getUsername().isBlank() &&
+                !updatedUser.getUsername().equals(user.getUsername())) {
 
-        // ✅ Call your updated generateToken()
-        return jwtService.generateToken(user.getId(), user.getUsername(), user.getEmail());
-    }
-
-    // ------------------ Update User ------------------
-    public User updateUser(String identifier, User updatedUser) {
-        User user = findByUsernameOrEmail(identifier);
-
-        if (updatedUser.getUsername() != null && !updatedUser.getUsername().isBlank())
+            if (userRepo.existsByUsername(updatedUser.getUsername())) {
+                throw new UserException("Username already taken", HttpStatus.CONFLICT);
+            }
             user.setUsername(updatedUser.getUsername());
+        }
 
-        if (updatedUser.getEmail() != null && !updatedUser.getEmail().isBlank())
+        // Update email
+        if (updatedUser.getEmail() != null &&
+                !updatedUser.getEmail().isBlank() &&
+                !updatedUser.getEmail().equals(user.getEmail())) {
+
+            if (userRepo.existsByEmail(updatedUser.getEmail())) {
+                throw new UserException("Email already taken", HttpStatus.CONFLICT);
+            }
             user.setEmail(updatedUser.getEmail());
+        }
 
-        if (updatedUser.getPassword() != null && !updatedUser.getPassword().isBlank())
+        // Update password
+        if (updatedUser.getPassword() != null &&
+                !updatedUser.getPassword().isBlank()) {
+
             user.setPassword(passwordEncoder.encode(updatedUser.getPassword()));
+        }
 
-        if (updatedUser.getProfilePicUrl() != null && !updatedUser.getProfilePicUrl().isBlank())
+        // Update profile picture
+        if (updatedUser.getProfilePicUrl() != null &&
+                !updatedUser.getProfilePicUrl().isBlank()) {
+
             user.setProfilePicUrl(updatedUser.getProfilePicUrl());
+        }
 
         return userRepo.save(user);
     }
 
-    // ------------------ Search Users ------------------
+    // ------------------ SEARCH USERS ------------------
     public List<User> searchUser(String query) {
-        List<User> users = userRepo.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query);
+
+        List<User> users =
+                userRepo.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(query, query);
 
         if (users.isEmpty()) {
-            throw new UserException("No users found matching query: " + query, HttpStatus.NOT_FOUND);
+            throw new UserException(
+                    "No users found matching query: " + query,
+                    HttpStatus.NOT_FOUND
+            );
         }
 
         return users;
