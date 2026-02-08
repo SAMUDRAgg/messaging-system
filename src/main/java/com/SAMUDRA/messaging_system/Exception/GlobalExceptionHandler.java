@@ -7,31 +7,58 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(UserException.class)
-    public ResponseEntity<Object> handleUserException(UserException ex, WebRequest request) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("message", ex.getMessage());
-        body.put("status", HttpStatus.BAD_REQUEST.value());
-        body.put("path", request.getDescription(false)); // gives the URL path
+    /* ---------------- USER EXCEPTION ---------------- */
 
-        return new ResponseEntity<>(body, HttpStatus.BAD_REQUEST);
+    @ExceptionHandler(UserException.class)
+    public ResponseEntity<ErrorDetail> handleUserException(
+            UserException ex,
+            WebRequest request
+    ) {
+
+        ErrorDetail errorDetail = new ErrorDetail(
+                "USER_ERROR",
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return new ResponseEntity<>(errorDetail, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Object> handleOtherExceptions(Exception ex, WebRequest request) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("timestamp", LocalDateTime.now());
-        body.put("message", "Something went wrong!");
-        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        body.put("path", request.getDescription(false));
+    /* ---------------- CHAT EXCEPTION ---------------- */
 
-        return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
+    @ExceptionHandler(ChatException.class)
+    public ResponseEntity<ErrorDetail> handleChatException(
+            ChatException ex,
+            WebRequest request
+    ) {
+
+        ErrorDetail errorDetail = new ErrorDetail(
+                "CHAT_ERROR",
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return new ResponseEntity<>(errorDetail, ex.getStatus());
+    }
+
+    /* ---------------- GENERIC EXCEPTION ---------------- */
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorDetail> handleOtherExceptions(
+            Exception ex,
+            WebRequest request
+    ) {
+
+        ErrorDetail errorDetail = new ErrorDetail(
+                "INTERNAL_SERVER_ERROR",
+                "Something went wrong!",
+                LocalDateTime.now()
+        );
+
+        return new ResponseEntity<>(errorDetail, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
