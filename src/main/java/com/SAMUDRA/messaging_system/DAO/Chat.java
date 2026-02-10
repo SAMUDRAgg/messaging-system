@@ -5,7 +5,6 @@ import com.SAMUDRA.messaging_system.enums.ChatType;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "chats")
@@ -15,26 +14,19 @@ public class Chat {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long chatId;
 
-    @Column(nullable = false)
-    private Long createdBy;
-
-    // chat participants (user IDs)
-    @ElementCollection
-    @CollectionTable(
-            name = "chat_participants",
-            joinColumns = @JoinColumn(name = "chat_id")
-    )
-    @Column(name = "user_id", nullable = false)
-    private List<Long> participantIds;
+    // 👤 Creator of the chat
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "created_by", nullable = false)
+    private User createdBy;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ChatType chatType;   // ONE_TO_ONE / GROUP
 
-    // group name (null for one-to-one)
+    // Group name (null for one-to-one)
     private String title;
 
-    // group profile pic (null for one-to-one)
+    // Group profile pic (null for one-to-one)
     private String groupProfilePicUrl;
 
     @Enumerated(EnumType.STRING)
@@ -50,28 +42,18 @@ public class Chat {
         this.lastMessageAt = LocalDateTime.now();
     }
 
+    // 🔹 Getters & Setters
+
     public Long getChatId() {
         return chatId;
     }
 
-    public void setChatId(Long chatId) {
-        this.chatId = chatId;
-    }
-
-    public Long getCreatedBy() {
+    public User getCreatedBy() {
         return createdBy;
     }
 
-    public void setCreatedBy(Long createdBy) {
+    public void setCreatedBy(User createdBy) {
         this.createdBy = createdBy;
-    }
-
-    public List<Long> getParticipantIds() {
-        return participantIds;
-    }
-
-    public void setParticipantIds(List<Long> participantIds) {
-        this.participantIds = participantIds;
     }
 
     public ChatType getChatType() {
@@ -110,10 +92,6 @@ public class Chat {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
     public LocalDateTime getLastMessageAt() {
         return lastMessageAt;
     }
@@ -121,6 +99,4 @@ public class Chat {
     public void setLastMessageAt(LocalDateTime lastMessageAt) {
         this.lastMessageAt = lastMessageAt;
     }
-
-    // getters & setters
 }
