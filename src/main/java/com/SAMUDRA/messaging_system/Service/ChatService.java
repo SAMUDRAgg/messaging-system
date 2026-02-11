@@ -35,15 +35,15 @@ public interface ChatService {
             throws ChatException;
 
     // Remove user from group
-    ChatResponse removeUserFromGroup(Long chatId, Long userId)
+    ChatResponse removeUserFromGroup(Long chatId, Long userId,Long requesterId)
             throws ChatException;
 
     // Rename group
-    ChatResponse renameGroup(Long chatId, String newGroupName)
+    ChatResponse renameGroup(Long chatId, String newGroupName , Long requesterId)
             throws ChatException;
 
     // Update group profile picture
-    ChatResponse updateGroupProfilePic(Long chatId, String profilePicUrl)
+    ChatResponse updateGroupProfilePic(Long chatId, String profilePicUrl , Long requesterId)
             throws ChatException;
 
 
@@ -51,6 +51,8 @@ public interface ChatService {
 
     // Archive chat (user-level)
     void archiveChat(Long chatId, Long userId)
+            throws ChatException;
+   void unarchiveChat(Long chatId, Long userId)
             throws ChatException;
 
     // Soft delete chat
@@ -62,5 +64,5 @@ public interface ChatService {
 
     boolean chatExists(Long chatId);
 
-    boolean isUserInChat(Long chatId, Long userId);
+
 }

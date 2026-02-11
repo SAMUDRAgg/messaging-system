@@ -4,4 +4,5 @@ public enum ChatStatus {
     ACTIVE,
     ARCHIVED,
     DELETED
+
 }

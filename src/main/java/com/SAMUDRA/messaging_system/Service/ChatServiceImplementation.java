@@ -14,6 +14,7 @@ import com.SAMUDRA.messaging_system.Repo.UserRepo;
 import com.SAMUDRA.messaging_system.enums.ChatRole;
 import com.SAMUDRA.messaging_system.enums.ChatStatus;
 import com.SAMUDRA.messaging_system.enums.ChatType;
+import com.SAMUDRA.messaging_system.enums.ParticipantChatStatus;
 import jakarta.transaction.Transactional;
 
 import java.util.HashSet;
@@ -27,7 +28,7 @@ public class ChatServiceImplementation implements ChatService {
 
 
         List<ParticipantResponse> participants =
-                chatParticipantRepo.findByChat(chat)
+                chatParticipantRepo.findByChatChatIdAndStatus(chat.getChatId(), ParticipantChatStatus.ACTIVE)
                         .stream()
                         .map(cp -> new ParticipantResponse(
                                 cp.getUser().getId(),
@@ -184,42 +185,230 @@ public class ChatServiceImplementation implements ChatService {
 
     @Override
     public ChatResponse addUserToGroup(Long chatId, Long userId) throws ChatException {
-        return null;
+        // 1️⃣ Fetch chat properly
+        Chat chat = chatRepo.findById(chatId)
+                .orElseThrow(() -> new ChatException("Chat not found with id: " + chatId));
+
+        // 2️⃣ Validate chat type
+        if (chat.getChatType() != ChatType.GROUP) {
+            throw new ChatException("Cannot add users to one-to-one chat");
+        }
+
+        // 3️⃣ Validate chat status
+        if (chat.getChatStatus() != ChatStatus.ACTIVE) {
+            throw new ChatException("Cannot modify inactive chat");
+        }
+
+        // 4️⃣ Validate user exists
+        User user = userService.findById(userId);
+
+        // 5️⃣ Check if already participant
+        boolean exists = chatParticipantRepo
+                .existsByChatChatIdAndUserId(chatId, userId);
+
+        if (exists) {
+            throw new ChatException("User is already in the group");
+        }
+
+        // 6️⃣ Add participant
+        ChatParticipant participant =
+                new ChatParticipant(chat, user, ChatRole.MEMBER);
+
+        chatParticipantRepo.save(participant);
+
+        return mapToChatResponse(chat);
     }
 
     @Override
-    public ChatResponse removeUserFromGroup(Long chatId, Long userId) throws ChatException {
-        return null;
+    public ChatResponse removeUserFromGroup(Long chatId, Long userId,Long requesterId) throws ChatException {
+        // 1️⃣ Fetch chat
+        Chat chat = chatRepo.findById(chatId)
+                .orElseThrow(() ->
+                        new ChatException("Chat not found with id: " + chatId));
+
+        // 2️⃣ Validate chat type
+        if (chat.getChatType() != ChatType.GROUP) {
+            throw new ChatException("Cannot remove users from a one-to-one chat");
+        }
+
+        // 3️⃣ Check requester is ADMIN
+        ChatParticipant requester = chatParticipantRepo
+                .findByChatChatIdAndUserId(chatId, requesterId)
+                .orElseThrow(() ->
+                        new ChatException("Requester is not a member of this group"));
+
+        if (requester.getRole() != ChatRole.ADMIN) {
+            throw new ChatException("Only admins can remove members");
+        }
+
+        // 4️⃣ Fetch participant to remove
+        ChatParticipant participant = chatParticipantRepo
+                .findByChatChatIdAndUserId(chatId, userId)
+                .orElseThrow(() ->
+                        new ChatException("User is not a member of this group"));
+
+        // 5️⃣ Prevent removing last admin
+        if (participant.getRole() == ChatRole.ADMIN) {
+            long adminCount = chatParticipantRepo.countByChatChatIdAndRoleAndStatus(chatId, ChatRole.ADMIN, ChatStatus.ACTIVE);
+
+            if (adminCount <= 1) {
+                throw new ChatException("Cannot remove the last admin from the group");
+            }
+        }
+
+        // 6️⃣ Remove
+        chatParticipantRepo.delete(participant);
+
+        return mapToChatResponse(chat);
     }
 
     @Override
-    public ChatResponse renameGroup(Long chatId, String newGroupName) throws ChatException {
-        return null;
+    public ChatResponse renameGroup(Long chatId, String newGroupName ,Long requesterId) throws ChatException {
+        // 1️⃣ Fetch chat
+        Chat chat = chatRepo.findById(chatId)
+                .orElseThrow(() ->
+                        new ChatException("Chat not found with id: " + chatId));
+
+        // 2️⃣ Validate chat type
+        if (chat.getChatType() != ChatType.GROUP) {
+            throw new ChatException("Cannot rename a one-to-one chat");
+        }
+
+        // 3️⃣ Validate chat status
+        if (chat.getChatStatus() != ChatStatus.ACTIVE) {
+            throw new ChatException("Cannot modify an inactive chat");
+        }
+
+        // 4️⃣ Validate group name
+        if (newGroupName == null || newGroupName.trim().isEmpty()) {
+            throw new ChatException("Group name cannot be empty");
+        }
+
+        String trimmedName = newGroupName.trim();
+
+        // 5️⃣ Prevent unnecessary update
+        if (trimmedName.equals(chat.getTitle())) {
+            throw new ChatException("Group name is already set to this value");
+        }
+
+        // 6️⃣ Validate requester is ADMIN
+        ChatParticipant requester = chatParticipantRepo
+                .findByChatChatIdAndUserId(chatId, requesterId)
+                .orElseThrow(() ->
+                        new ChatException("Requester is not a member of this group"));
+
+        if (requester.getRole() != ChatRole.ADMIN) {
+            throw new ChatException("Only admins can rename the group");
+        }
+
+        // 7️⃣ Rename (no explicit save needed if inside @Transactional)
+        chat.setTitle(trimmedName);
+            return mapToChatResponse(chat);
     }
 
     @Override
-    public ChatResponse updateGroupProfilePic(Long chatId, String profilePicUrl) throws ChatException {
-        return null;
+    public ChatResponse updateGroupProfilePic(Long chatId, String profilePicUrl ,Long requesterId) throws ChatException {
+        // 1️⃣ Fetch chat
+        Chat chat = chatRepo.findById(chatId)
+                .orElseThrow(() ->
+                        new ChatException("Chat not found with id: " + chatId));
+
+        // 2️⃣ Validate chat type
+        if (chat.getChatType() != ChatType.GROUP) {
+            throw new ChatException("Cannot update profile picture of a one-to-one chat");
+        }
+
+        // 3️⃣ Validate chat status
+        if (chat.getChatStatus() != ChatStatus.ACTIVE) {
+            throw new ChatException("Cannot modify an inactive chat");
+        }
+
+        // 4️⃣ Validate requester membership
+        ChatParticipant requester = chatParticipantRepo
+                .findByChatChatIdAndUserId(chatId, requesterId)
+                .orElseThrow(() ->
+                        new ChatException("Requester is not a member of this group"));
+
+        // 5️⃣ Validate ADMIN permission
+        if (requester.getRole() != ChatRole.ADMIN) {
+            throw new ChatException("Only admins can update the group profile picture");
+        }
+
+        // 6️⃣ Validate URL
+        if (profilePicUrl == null || profilePicUrl.trim().isEmpty()) {
+            throw new ChatException("Profile picture URL cannot be empty");
+        }
+
+        String trimmedUrl = profilePicUrl.trim();
+
+        // 7️⃣ Prevent redundant update
+        if (trimmedUrl.equals(chat.getGroupProfilePicUrl())) {
+            throw new ChatException("Profile picture is already set to this value");
+        }
+
+        // Optional: basic URL validation (simple safeguard)
+        if (!trimmedUrl.startsWith("http://") && !trimmedUrl.startsWith("https://")) {
+            throw new ChatException("Invalid profile picture URL");
+        }
+
+        // 8️⃣ Update (dirty checking will persist)
+        chat.setGroupProfilePicUrl(trimmedUrl);
+
+        return mapToChatResponse(chat);
     }
 
     @Override
     public void archiveChat(Long chatId, Long userId) throws ChatException {
+        ChatParticipant participant = chatParticipantRepo
+                .findByChatChatIdAndUserId(chatId, userId)
+                .orElseThrow(() ->
+                        new ChatException("User is not a participant of this chat"));
 
+        if (participant.getStatus() == ParticipantChatStatus.ARCHIVED) {
+            throw new ChatException("Chat is already archived");
+        }
+
+        participant.setStatus(ParticipantChatStatus.ARCHIVED);
+    }
+
+    @Transactional
+    @Override
+    public void unarchiveChat(Long chatId, Long userId) {
+
+        ChatParticipant participant = chatParticipantRepo
+                .findByChatChatIdAndUserId(chatId, userId)
+                .orElseThrow(() ->
+                        new ChatException("User is not a participant of this chat"));
+
+        if (participant.getStatus() != ParticipantChatStatus.ARCHIVED) {
+            throw new ChatException("Chat is not archived");
+        }
+
+        participant.setStatus(ParticipantChatStatus.ACTIVE);
     }
 
     @Override
     public void deleteChat(Long chatId, Long userId) throws ChatException {
+        // 1️⃣ Fetch participant record
+        ChatParticipant participant = chatParticipantRepo
+                .findByChatChatIdAndUserId(chatId, userId)
+                .orElseThrow(() ->
+                        new ChatException("User is not a participant of this chat"));
 
+        // 2️⃣ Prevent duplicate delete
+        if (participant.getStatus() == ParticipantChatStatus.LEFT) {
+            throw new ChatException("Chat is already deleted for this user");
+        }
+
+        // 3️⃣ Mark as LEFT (soft delete for user)
+        participant.setStatus(ParticipantChatStatus.LEFT);
     }
 
     @Override
     public boolean chatExists(Long chatId) {
-        return false;
+        return chatRepo.existsById(chatId);
     }
 
-    @Override
-    public boolean isUserInChat(Long chatId, Long userId) {
-        return false;
-    }
+
 }
 
