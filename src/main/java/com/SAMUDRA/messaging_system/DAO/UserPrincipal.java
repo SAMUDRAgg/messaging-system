@@ -13,7 +13,9 @@ public class UserPrincipal implements UserDetails {
     public UserPrincipal(User user) {
         this.user = user;
     }
-
+    public Long getId() {
+        return user.getId();
+    }
     public User getUser() { // ✅ needed for validation
         return user;
     }

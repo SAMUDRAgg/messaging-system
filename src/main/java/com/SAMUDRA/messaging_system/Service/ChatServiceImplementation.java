@@ -16,11 +16,12 @@ import com.SAMUDRA.messaging_system.enums.ChatStatus;
 import com.SAMUDRA.messaging_system.enums.ChatType;
 import com.SAMUDRA.messaging_system.enums.ParticipantChatStatus;
 import jakarta.transaction.Transactional;
+import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
+@Service
 public class ChatServiceImplementation implements ChatService {
 
 

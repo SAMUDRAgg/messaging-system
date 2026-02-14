@@ -5,9 +5,18 @@ import com.SAMUDRA.messaging_system.enums.ChatType;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
-@Table(name = "chats")
+@Table(
+        name = "chats",
+        indexes = {
+                @Index(name = "idx_chat_type", columnList = "chat_type"),
+                @Index(name = "idx_chat_status", columnList = "chat_status"),
+                @Index(name = "idx_chat_last_message", columnList = "last_message_at")
+        }
+)
 public class Chat {
 
     @Id
@@ -19,30 +28,84 @@ public class Chat {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
+    // 🔹 Chat Type (ONE_TO_ONE / GROUP)
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ChatType chatType;   // ONE_TO_ONE / GROUP
+    @Column(name = "chat_type", nullable = false, length = 30)
+    private ChatType chatType;
 
-    // Group name (null for one-to-one)
+    // 🔹 Group Name (nullable for ONE_TO_ONE)
+    @Column(length = 100)
     private String title;
 
-    // Group profile pic (null for one-to-one)
+    // 🔹 Group Profile Picture URL
+    @Column(name = "group_profile_pic_url", length = 500)
     private String groupProfilePicUrl;
 
+    // 🔹 Global Chat Status
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "chat_status", nullable = false, length = 30)
     private ChatStatus chatStatus = ChatStatus.ACTIVE;
 
+    // 🔹 Participants (Mapped by ChatParticipant)
+    @OneToMany(
+            mappedBy = "chat",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<ChatParticipant> participants = new HashSet<>();
+
+    // 🔹 Auditing Fields
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
+
+    // 🔹 Optimistic Locking
+    @Version
+    private Long version;
+
+    // =============================
+    // Lifecycle Hooks
+    // =============================
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
+        this.lastMessageAt = now;
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    // =============================
+    // Utility Methods
+    // =============================
+
+    public void addParticipant(ChatParticipant participant) {
+        participants.add(participant);
+        participant.setChat(this);
+    }
+
+    public void removeParticipant(ChatParticipant participant) {
+        participants.remove(participant);
+        participant.setChat(null);
+    }
+
+    public void updateLastMessageTime() {
         this.lastMessageAt = LocalDateTime.now();
     }
 
-    // 🔹 Getters & Setters
+    // =============================
+    // Getters & Setters
+    // =============================
 
     public Long getChatId() {
         return chatId;
@@ -88,8 +151,16 @@ public class Chat {
         this.chatStatus = chatStatus;
     }
 
+    public Set<ChatParticipant> getParticipants() {
+        return participants;
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
     }
 
     public LocalDateTime getLastMessageAt() {
@@ -98,5 +169,9 @@ public class Chat {
 
     public void setLastMessageAt(LocalDateTime lastMessageAt) {
         this.lastMessageAt = lastMessageAt;
+    }
+
+    public Long getVersion() {
+        return version;
     }
 }
