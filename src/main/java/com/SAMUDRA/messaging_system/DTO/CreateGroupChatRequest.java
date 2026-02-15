@@ -1,37 +1,33 @@
 package com.SAMUDRA.messaging_system.DTO;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
+
 import java.util.List;
 
 public class CreateGroupChatRequest {
 
-    private Long creatorId;
-    private List<Long> participantIds;
+    @NotBlank(message = "Group name is required")
+    @Size(max = 100, message = "Group name must not exceed 100 characters")
     private String groupName;
+
+    @NotEmpty(message = "At least one participant is required")
+    private List<Long> participantIds;
+
+    @Size(max = 500, message = "Profile picture URL too long")
     private String groupProfilePicUrl;
 
-    // constructors
     public CreateGroupChatRequest() {}
 
     public CreateGroupChatRequest(
-            Long creatorId,
             List<Long> participantIds,
             String groupName,
             String groupProfilePicUrl
     ) {
-        this.creatorId = creatorId;
         this.participantIds = participantIds;
         this.groupName = groupName;
         this.groupProfilePicUrl = groupProfilePicUrl;
-    }
-
-    // getters & setters
-
-    public Long getCreatorId() {
-        return creatorId;
-    }
-
-    public void setCreatorId(Long creatorId) {
-        this.creatorId = creatorId;
     }
 
     public List<Long> getParticipantIds() {

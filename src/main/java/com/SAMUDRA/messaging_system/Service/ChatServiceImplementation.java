@@ -16,6 +16,7 @@ import com.SAMUDRA.messaging_system.enums.ChatStatus;
 import com.SAMUDRA.messaging_system.enums.ChatType;
 import com.SAMUDRA.messaging_system.enums.ParticipantChatStatus;
 import jakarta.transaction.Transactional;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
@@ -107,72 +108,114 @@ public class ChatServiceImplementation implements ChatService {
     }
 
     @Override
-    public ChatResponse getChatById(Long chatId) throws ChatException {
-        Chat chat = chatRepo.getById(chatId);
+    public ChatResponse getChatById(Long chatId, Long userId) throws ChatException {
+        Chat chat = chatRepo.findById(chatId)
+                .orElseThrow(() ->
+                        new ChatException(
+                                "Chat not found with id: " + chatId,
+                                HttpStatus.NOT_FOUND
+                        ));
 
-        if(chat== null){
-            throw new ChatException("Chat not found with id: " + chatId);
+        // 2️⃣ Validate user access
+        ChatParticipant participant = chatParticipantRepo
+                .findByChatChatIdAndUserId(chatId, userId)
+                .orElseThrow(() ->
+                        new ChatException(
+                                "Access denied",
+                                HttpStatus.FORBIDDEN
+                        ));
+
+        // 3️⃣ Validate participant status
+        if (participant.getStatus() != ParticipantChatStatus.ACTIVE) {
+            throw new ChatException(
+                    "Chat not available",
+                    HttpStatus.GONE
+            );
         }
-        else {
-            return mapToChatResponse(chat);
-        }
+
+        return mapToChatResponse(chat);
     }
 
     @Override
     public List<ChatResponse> getAllChatsByUserId(Long userId) throws UserException {
-       if(userService.findById(userId) == null){
-           throw new UserException("User not found with id: " + userId);
-       }
-       else {
-           List<Chat> chats = chatRepo.findAllByUserId(userId);
+        // 1️⃣ Fetch only ACTIVE participations
+        List<ChatParticipant> participations =
+                chatParticipantRepo.findByUserIdAndStatus(
+                        userId,
+                        ParticipantChatStatus.ACTIVE
+                );
 
-           return chats.stream()
-                   .map(this::mapToChatResponse)
-                   .toList();
-       }
+        // 2️⃣ Map to ChatResponse
+        return participations.stream()
+                .map(ChatParticipant::getChat)
+                .map(this::mapToChatResponse)
+                .toList();
     }
     @Transactional
     @Override
-    public ChatResponse createGroupChat(CreateGroupChatRequest request) throws UserException, ChatException {
+    public ChatResponse createGroupChat(Long creatorId,
+                                        List<Long> participantIds,
+                                        String groupName,
+                                        String groupProfilePicUrl ) throws UserException, ChatException {
         // 1️⃣ Validate group name
-        if (request.getGroupName() == null || request.getGroupName().isBlank()) {
-            throw new ChatException("Group name cannot be empty");
+        if (groupName == null || groupName.isBlank()) {
+            throw new ChatException(
+                    "Group name cannot be empty",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
         // 2️⃣ Validate creator
-        User creator = userService.findById(request.getCreatorId());
-        Long creatorId = creator.getId();
+        User creator = userRepo.findById(creatorId)
+                .orElseThrow(() ->
+                        new ChatException(
+                                "Creator not found",
+                                HttpStatus.NOT_FOUND
+                        ));
 
         // 3️⃣ Validate participant list
-        if (request.getParticipantIds() == null || request.getParticipantIds().isEmpty()) {
-            throw new ChatException("At least one participant is required");
+        if (participantIds == null || participantIds.isEmpty()) {
+            throw new ChatException(
+                    "At least one participant is required",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
-        // 4️⃣ Ensure creator is always included
-        Set<Long> participantIds = new HashSet<>(request.getParticipantIds());
-        participantIds.add(creator.getId());
+        // 4️⃣ Remove duplicates
+        Set<Long> uniqueIds = new HashSet<>(participantIds);
 
-        // 5️⃣ Validate all participants in ONE DB call
-        List<User> users = userRepo.findAllById(participantIds);
-        if (users.size() != participantIds.size()) {
-            throw new ChatException("One or more participants not found");
+        // 5️⃣ Add creator automatically
+        uniqueIds.add(creatorId);
+
+        // 6️⃣ Validate all users in one query
+        List<User> users = userRepo.findAllById(uniqueIds);
+
+        if (users.size() != uniqueIds.size()) {
+            throw new ChatException(
+                    "One or more participants not found",
+                    HttpStatus.BAD_REQUEST
+            );
         }
 
-        // 6️⃣ Create chat
+        // 7️⃣ Create chat
         Chat chat = new Chat();
         chat.setChatType(ChatType.GROUP);
-        chat.setTitle(request.getGroupName());
+        chat.setTitle(groupName.trim());
         chat.setCreatedBy(creator);
         chat.setChatStatus(ChatStatus.ACTIVE);
 
+        if (groupProfilePicUrl != null && !groupProfilePicUrl.isBlank()) {
+            chat.setGroupProfilePicUrl(groupProfilePicUrl.trim());
+        }
+
         Chat savedChat = chatRepo.save(chat);
 
-        // 7️⃣ Create participants with roles
+        // 8️⃣ Create participants
         List<ChatParticipant> participants = users.stream()
                 .map(user -> new ChatParticipant(
                         savedChat,
                         user,
-                        user.getId().equals(creator.getId())
+                        user.getId().equals(creatorId)
                                 ? ChatRole.ADMIN
                                 : ChatRole.MEMBER
                 ))
@@ -180,12 +223,11 @@ public class ChatServiceImplementation implements ChatService {
 
         chatParticipantRepo.saveAll(participants);
 
-        // 8️⃣ Return response
         return mapToChatResponse(savedChat);
     }
 
     @Override
-    public ChatResponse addUserToGroup(Long chatId, Long userId) throws ChatException {
+    public ChatResponse addUserToGroup(Long chatId, Long userId, Long currentUserId) throws ChatException {
         // 1️⃣ Fetch chat properly
         Chat chat = chatRepo.findById(chatId)
                 .orElseThrow(() -> new ChatException("Chat not found with id: " + chatId));
@@ -357,7 +399,7 @@ public class ChatServiceImplementation implements ChatService {
 
         return mapToChatResponse(chat);
     }
-
+    @Transactional
     @Override
     public void archiveChat(Long chatId, Long userId) throws ChatException {
         ChatParticipant participant = chatParticipantRepo
@@ -387,7 +429,7 @@ public class ChatServiceImplementation implements ChatService {
 
         participant.setStatus(ParticipantChatStatus.ACTIVE);
     }
-
+    @Transactional
     @Override
     public void deleteChat(Long chatId, Long userId) throws ChatException {
         // 1️⃣ Fetch participant record
@@ -405,10 +447,6 @@ public class ChatServiceImplementation implements ChatService {
         participant.setStatus(ParticipantChatStatus.LEFT);
     }
 
-    @Override
-    public boolean chatExists(Long chatId) {
-        return chatRepo.existsById(chatId);
-    }
 
 
 }

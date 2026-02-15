@@ -16,7 +16,7 @@ public interface ChatService {
             throws UserException, ChatException;
 
     // Get chat by chatId
-    ChatResponse getChatById(Long chatId)
+    ChatResponse getChatById(Long chatId , Long userId)
             throws ChatException;
 
     // Get all chats for a user (chat list screen)
@@ -27,11 +27,14 @@ public interface ChatService {
     /* -------------------- GROUP CHAT -------------------- */
 
     // Create group chat
-    ChatResponse createGroupChat(CreateGroupChatRequest request)
+    ChatResponse createGroupChat(Long creatorId,
+                                 List<Long> participantIds,
+                                 String groupName,
+                                 String groupProfilePicUrl)
             throws UserException, ChatException;
 
     // Add user to group
-    ChatResponse addUserToGroup(Long chatId, Long userId)
+    ChatResponse addUserToGroup(Long chatId, Long userId , Long currentUserId)
             throws ChatException;
 
     // Remove user from group
@@ -62,7 +65,7 @@ public interface ChatService {
 
     /* -------------------- VALIDATION / UTILITY -------------------- */
 
-    boolean chatExists(Long chatId);
+
 
 
 }

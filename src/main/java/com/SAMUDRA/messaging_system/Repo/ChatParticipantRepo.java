@@ -23,7 +23,7 @@ public interface ChatParticipantRepo extends JpaRepository<ChatParticipant, Long
     // 🔹 Get only ACTIVE chats of a user (important for chat list)
     List<ChatParticipant> findByUserIdAndStatus(
             Long userId,
-            ChatStatus status
+            ParticipantChatStatus status
     );
 
     // 🔹 Check membership existence
