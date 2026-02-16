@@ -45,6 +45,23 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorDetail, ex.getStatus());
     }
 
+    /* ---------------- MESSAGE EXCEPTION ---------------- */
+
+    @ExceptionHandler(MessageException.class)
+    public ResponseEntity<ErrorDetail> handleMessageException(
+            MessageException ex,
+            WebRequest request
+    ) {
+
+        ErrorDetail errorDetail = new ErrorDetail(
+                "MESSAGE_ERROR",
+                ex.getMessage(),
+                LocalDateTime.now()
+        );
+
+        return new ResponseEntity<>(errorDetail, ex.getStatus());
+    }
+
     /* ---------------- GENERIC EXCEPTION ---------------- */
 
     @ExceptionHandler(Exception.class)
