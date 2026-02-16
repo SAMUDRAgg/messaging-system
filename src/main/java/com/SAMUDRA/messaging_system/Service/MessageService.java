@@ -49,12 +49,7 @@ public interface MessageService {
     ) throws UserException, ChatException;
 
 
-    // 6️⃣ React to a message
-    void reactToMessage(
-            Long messageId,
-            Long userId,
-            String reaction
-    ) throws UserException, MessageException;
+
 
 
     // 7️⃣ Check message exists
