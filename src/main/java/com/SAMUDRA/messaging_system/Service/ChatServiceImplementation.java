@@ -4,10 +4,10 @@ import com.SAMUDRA.messaging_system.DAO.Chat;
 import com.SAMUDRA.messaging_system.DAO.ChatParticipant;
 import com.SAMUDRA.messaging_system.DAO.User;
 import com.SAMUDRA.messaging_system.DTO.ChatResponse;
-import com.SAMUDRA.messaging_system.DTO.CreateGroupChatRequest;
-import com.SAMUDRA.messaging_system.DTO.ParticipantResponse;
+
 import com.SAMUDRA.messaging_system.Exception.ChatException;
 import com.SAMUDRA.messaging_system.Exception.UserException;
+import com.SAMUDRA.messaging_system.Mapper.ChatMapper;
 import com.SAMUDRA.messaging_system.Repo.ChatParticipantRepo;
 import com.SAMUDRA.messaging_system.Repo.ChatRepo;
 import com.SAMUDRA.messaging_system.Repo.UserRepo;
@@ -22,42 +22,23 @@ import org.springframework.stereotype.Service;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+
+
 @Service
 public class ChatServiceImplementation implements ChatService {
-
-
-    private ChatResponse mapToChatResponse(Chat chat) {
-
-
-        List<ParticipantResponse> participants =
-                chatParticipantRepo.findByChatChatIdAndStatus(chat.getChatId(), ParticipantChatStatus.ACTIVE)
-                        .stream()
-                        .map(cp -> new ParticipantResponse(
-                                cp.getUser().getId(),
-                                cp.getRole()
-                        ))
-                        .toList();
-
-        return new ChatResponse(
-                chat.getChatId(),
-                chat.getChatType(),
-                chat.getTitle(),
-                chat.getGroupProfilePicUrl(),
-                participants.stream().map(ParticipantResponse::getUserId).toList(),
-                chat.getChatStatus(),
-                chat.getLastMessageAt()
-        );
-    }
 
     private ChatRepo chatRepo;
     private UserService userService;
     private UserRepo userRepo;
     private ChatParticipantRepo chatParticipantRepo;
-    public ChatServiceImplementation(ChatRepo chatRepo , UserService userService , UserRepo userRepo, ChatParticipantRepo chatParticipantRepo) {
+    private ChatMapper chatMapper;
+    public ChatServiceImplementation(ChatRepo chatRepo , UserService userService , UserRepo userRepo, ChatParticipantRepo chatParticipantRepo, ChatMapper chatMapper) {
         this.chatRepo = chatRepo;
        this.userService = userService;
        this.userRepo = userRepo;
        this.chatParticipantRepo = chatParticipantRepo;
+       this.chatMapper = chatMapper;
     }
 
     @Override
@@ -76,7 +57,7 @@ public class ChatServiceImplementation implements ChatService {
                 chatRepo.findOneToOneChat(userId1, userId2,ChatType.ONE_TO_ONE);
 
         if (existingChat != null) {
-            return mapToChatResponse(existingChat);
+            return chatMapper.mapToChatResponse(existingChat);
         }
 
         // 4️⃣ Create chat
@@ -103,7 +84,7 @@ public class ChatServiceImplementation implements ChatService {
         chatParticipantRepo.saveAll(List.of(p1, p2));
 
         // 6️⃣ Return response
-        return mapToChatResponse(savedChat);
+        return chatMapper.mapToChatResponse(savedChat);
 
     }
 
@@ -133,7 +114,7 @@ public class ChatServiceImplementation implements ChatService {
             );
         }
 
-        return mapToChatResponse(chat);
+        return chatMapper.mapToChatResponse(chat);
     }
 
     @Override
@@ -148,7 +129,7 @@ public class ChatServiceImplementation implements ChatService {
         // 2️⃣ Map to ChatResponse
         return participations.stream()
                 .map(ChatParticipant::getChat)
-                .map(this::mapToChatResponse)
+                .map(chatMapper::mapToChatResponse)
                 .toList();
     }
     @Transactional
@@ -223,7 +204,7 @@ public class ChatServiceImplementation implements ChatService {
 
         chatParticipantRepo.saveAll(participants);
 
-        return mapToChatResponse(savedChat);
+        return chatMapper.mapToChatResponse(savedChat);
     }
 
     @Override
@@ -259,7 +240,7 @@ public class ChatServiceImplementation implements ChatService {
 
         chatParticipantRepo.save(participant);
 
-        return mapToChatResponse(chat);
+        return chatMapper.mapToChatResponse(chat);
     }
 
     @Override
@@ -302,7 +283,7 @@ public class ChatServiceImplementation implements ChatService {
         // 6️⃣ Remove
         chatParticipantRepo.delete(participant);
 
-        return mapToChatResponse(chat);
+        return chatMapper.mapToChatResponse(chat);
     }
 
     @Override
@@ -346,7 +327,7 @@ public class ChatServiceImplementation implements ChatService {
 
         // 7️⃣ Rename (no explicit save needed if inside @Transactional)
         chat.setTitle(trimmedName);
-            return mapToChatResponse(chat);
+            return chatMapper.mapToChatResponse(chat);
     }
 
     @Override
@@ -397,7 +378,7 @@ public class ChatServiceImplementation implements ChatService {
         // 8️⃣ Update (dirty checking will persist)
         chat.setGroupProfilePicUrl(trimmedUrl);
 
-        return mapToChatResponse(chat);
+        return chatMapper.mapToChatResponse(chat);
     }
     @Transactional
     @Override

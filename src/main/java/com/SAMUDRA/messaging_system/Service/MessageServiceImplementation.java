@@ -6,10 +6,11 @@ import com.SAMUDRA.messaging_system.DAO.User;
 import com.SAMUDRA.messaging_system.DTO.MessageRequest;
 import com.SAMUDRA.messaging_system.DTO.MessageResponse;
 
-import com.SAMUDRA.messaging_system.DTO.SenderInfo;
+
 import com.SAMUDRA.messaging_system.Exception.ChatException;
 import com.SAMUDRA.messaging_system.Exception.MessageException;
 import com.SAMUDRA.messaging_system.Exception.UserException;
+import com.SAMUDRA.messaging_system.Mapper.MessageMapper;
 import com.SAMUDRA.messaging_system.Repo.ChatParticipantRepo;
 import com.SAMUDRA.messaging_system.Repo.ChatRepo;
 import com.SAMUDRA.messaging_system.Repo.MessageRepo;
@@ -27,6 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+
+
 @Service
 
 @Transactional
@@ -36,12 +39,14 @@ public class MessageServiceImplementation implements MessageService {
     private final ChatRepo chatRepo;
     private final UserRepo userRepo;
     private final ChatParticipantRepo chatParticipantRepo;
+    private final MessageMapper messageMapper;
 
-    public MessageServiceImplementation(MessageRepo messageRepo, ChatRepo chatRepo, UserRepo userRepo, ChatParticipantRepo chatParticipantRepo) {
+    public MessageServiceImplementation(MessageRepo messageRepo, ChatRepo chatRepo, UserRepo userRepo, ChatParticipantRepo chatParticipantRepo, MessageMapper messageMapper) {
         this.messageRepo = messageRepo;
         this.chatRepo = chatRepo;
         this.userRepo = userRepo;
         this.chatParticipantRepo = chatParticipantRepo;
+        this.messageMapper = messageMapper;
     }
 
     /* =======================================================
@@ -107,7 +112,7 @@ public class MessageServiceImplementation implements MessageService {
 
         ChatMessage saved = messageRepo.save(message);
 
-        return mapToResponse(saved);
+        return messageMapper.mapToResponse(saved);
     }
 
     /* =======================================================
@@ -126,7 +131,7 @@ public class MessageServiceImplementation implements MessageService {
 
         return messageRepo.findByChat_ChatIdOrderByCreatedAtDesc(chatId, pageable)
                 .stream()
-                .map(this::mapToResponse)
+                .map(messageMapper::mapToResponse)
                 .toList();
     }
 
@@ -170,7 +175,7 @@ public class MessageServiceImplementation implements MessageService {
         message.setEdited(true);
         message.setUpdatedAt(LocalDateTime.now());
 
-        return mapToResponse(message);
+        return messageMapper.mapToResponse(message);
     }
 
     /* =======================================================
@@ -276,23 +281,7 @@ public class MessageServiceImplementation implements MessageService {
         messageRepo.save(forwarded);
     }
 
-    /* =======================================================
-       🧠 MAPPER
-    ======================================================= */
 
-    private MessageResponse mapToResponse(ChatMessage message) {
-        return new MessageResponse(
-                message.getMessageId(),
-                message.getChat().getChatId(),
-                new SenderInfo(message.getSenderId(), message.getSenderUsername(),null),
-                message.getContent(),
-                null,
-                null,
-                message.isEdited(),
-                message.isDeleted(),
-                message.getCreatedAt(),
-                message.getUpdatedAt()
 
-        );
-    }
+
 }

@@ -92,7 +92,7 @@ public class ChatController {
                 .body(response);
 
     }
-    @PostMapping("/{chatId}/add/{userId}")
+    @PostMapping("/group/{chatId}/add/{userId}")
     public ResponseEntity<ChatResponse> addUserToGroup(
             @PathVariable Long chatId,
             @PathVariable Long userId
@@ -108,7 +108,7 @@ public class ChatController {
         return ResponseEntity.ok(response);
 
     }
-    @PostMapping("/{chatId}/remove/{userId}")
+    @PostMapping("/group/{chatId}/remove/{userId}")
     public ResponseEntity<ChatResponse> removeUserFromGroup(
             @PathVariable Long chatId,
             @PathVariable Long userId,
@@ -135,7 +135,7 @@ public class ChatController {
         );
         return ResponseEntity.ok(response);
     }
-    @PostMapping("/{chatId}/update-profile-pic")
+    @PostMapping("/group/{chatId}/update-profile-pic")
     public ResponseEntity<ChatResponse> updateGroupProfilePic(
             @PathVariable Long chatId,
             @RequestParam String profilePicUrl,
