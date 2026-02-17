@@ -75,7 +75,7 @@ public class MessageServiceImplementation implements MessageService {
     /* =======================================================
        1️⃣ SEND MESSAGE
     ======================================================= */
-
+    @Transactional
     @Override
     public MessageResponse sendMessage(Long chatId, Long senderId, MessageRequest request)
             throws UserException, ChatException, MessageException {
@@ -90,11 +90,20 @@ public class MessageServiceImplementation implements MessageService {
         validateParticipant(chatId, senderId);
 
         ChatMessage message = new ChatMessage();
+
         message.setChat(chat);
         message.setSenderId(senderId);
+        message.setSenderUsername(sender.getUsername());
+
         message.setContent(request.getContent().trim());
+
         message.setMessageType(MessageType.TEXT);
         message.setMessageStatus(MessageStatus.SENT);
+
+        message.setCreatedAt(LocalDateTime.now());
+        message.setEdited(false);
+        message.setDeleted(false);
+        message.setUpdatedAt(null);
 
         ChatMessage saved = messageRepo.save(message);
 
@@ -124,13 +133,24 @@ public class MessageServiceImplementation implements MessageService {
     /* =======================================================
        3️⃣ EDIT MESSAGE
     ======================================================= */
-
+    @Transactional
     @Override
-    public MessageResponse editMessage(Long messageId, Long userId, String newContent)
-            throws UserException, MessageException {
+    public MessageResponse editMessage(
+            Long messageId,
+            Long userId,
+            String newContent
+    ) throws UserException, MessageException {
 
-     ChatMessage message = getMessageOrThrow(messageId);
+        if (newContent == null || newContent.isBlank()) {
+            throw new MessageException(
+                    "Message content cannot be empty",
+                    HttpStatus.BAD_REQUEST
+            );
+        }
 
+        ChatMessage message = getMessageOrThrow(messageId);
+
+        // 🔐 Only sender can edit
         if (!message.getSenderId().equals(userId)) {
             throw new MessageException(
                     "You can only edit your own message",
@@ -138,6 +158,7 @@ public class MessageServiceImplementation implements MessageService {
             );
         }
 
+        // 🚫 Cannot edit deleted message
         if (message.isDeleted()) {
             throw new MessageException(
                     "Message already deleted",
@@ -155,7 +176,7 @@ public class MessageServiceImplementation implements MessageService {
     /* =======================================================
        4️⃣ DELETE MESSAGE (Soft Delete)
     ======================================================= */
-
+    @Transactional
     @Override
     public void deleteMessage(Long messageId, Long userId)
             throws UserException, MessageException {
@@ -183,7 +204,7 @@ public class MessageServiceImplementation implements MessageService {
     /* =======================================================
        5️⃣ MARK AS READ
     ======================================================= */
-
+    @Transactional
     @Override
     public void markAsRead(Long chatId, Long userId)
             throws UserException, ChatException {
@@ -235,13 +256,22 @@ public class MessageServiceImplementation implements MessageService {
         validateParticipant(toChatId, userId);
 
         Chat targetChat = getChatOrThrow(toChatId);
-
+        User sender = getUserOrThrow(userId);
         ChatMessage forwarded = new ChatMessage();
         forwarded.setChat(targetChat);
+
         forwarded.setSenderId(userId);
+        forwarded.setSenderUsername(sender.getUsername());   // ✅ VERY IMPORTANT
+
         forwarded.setContent(original.getContent());
         forwarded.setMessageType(original.getMessageType());
         forwarded.setMessageStatus(MessageStatus.SENT);
+
+        forwarded.setCreatedAt(LocalDateTime.now());
+        forwarded.setDeleted(false);
+        forwarded.setEdited(false);
+
+        messageRepo.save(forwarded);
 
         messageRepo.save(forwarded);
     }
@@ -261,8 +291,8 @@ public class MessageServiceImplementation implements MessageService {
                 message.isEdited(),
                 message.isDeleted(),
                 message.getCreatedAt(),
-                message.getUpdatedAt(),
-                null
+                message.getUpdatedAt()
+
         );
     }
 }

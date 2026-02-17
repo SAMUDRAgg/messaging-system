@@ -141,17 +141,21 @@ public class ChatMessage {
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
 
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
 
-    public void setSender(User sender) {
-        
-    }
+
 
     public String getSenderUsername() {
         return senderUsername;
+    }
+    public void setSenderUsername(String senderUsername) {
+        this.senderUsername = senderUsername;
     }
 
     public void setUpdatedAt(LocalDateTime now) {

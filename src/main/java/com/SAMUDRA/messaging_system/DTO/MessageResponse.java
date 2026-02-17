@@ -20,8 +20,7 @@ public class MessageResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    private Map<String, Integer> reactions;
-    // Example: { "❤️": 3, "🔥": 1 }
+
 
     public MessageResponse() {}
 
@@ -35,8 +34,8 @@ public class MessageResponse {
             boolean edited,
             boolean deleted,
             LocalDateTime createdAt,
-            LocalDateTime updatedAt,
-            Map<String, Integer> reactions
+            LocalDateTime updatedAt
+
     ) {
         this.messageId = messageId;
         this.chatId = chatId;
@@ -48,7 +47,7 @@ public class MessageResponse {
         this.deleted = deleted;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
-        this.reactions = reactions;
+
     }
 
     // getters only (immutable response style)
@@ -133,11 +132,5 @@ public class MessageResponse {
         this.updatedAt = updatedAt;
     }
 
-    public Map<String, Integer> getReactions() {
-        return reactions;
-    }
 
-    public void setReactions(Map<String, Integer> reactions) {
-        this.reactions = reactions;
-    }
 }
