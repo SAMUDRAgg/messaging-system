@@ -5,6 +5,7 @@ import com.SAMUDRA.messaging_system.DAO.UserPrincipal;
 import com.SAMUDRA.messaging_system.DTO.UserProfileResponse;
 import com.SAMUDRA.messaging_system.DTO.UserSearchResponse;
 import com.SAMUDRA.messaging_system.DTO.UserUpdateRequest;
+import com.SAMUDRA.messaging_system.Mapper.UserMapper;
 import com.SAMUDRA.messaging_system.Service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,8 +20,11 @@ public class UserController {
 
     private final UserService userService;
 
-    public UserController(UserService userService) {
+    private final UserMapper userMapper;
+
+    public UserController(UserService userService , UserMapper userMapper) {
         this.userService = userService;
+        this.userMapper = userMapper;
     }
 
     // -------- Get Logged-in User Profile --------
@@ -29,7 +33,7 @@ public class UserController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         User user = principal.getUser();
-        return ResponseEntity.ok(mapToProfile(user));
+        return ResponseEntity.ok(userMapper.mapToProfile(user));
     }
 
     // -------- Update Logged-in User Profile --------
@@ -50,7 +54,7 @@ public class UserController {
                 updatedUser
         );
 
-        return ResponseEntity.ok(mapToProfile(user));
+        return ResponseEntity.ok(userMapper.mapToProfile(user));
     }
 
     // -------- Search Users --------
@@ -72,13 +76,5 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
-    // -------- Mapper --------
-    private UserProfileResponse mapToProfile(User user) {
-        return new UserProfileResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getProfilePicUrl()
-        );
-    }
+
 }

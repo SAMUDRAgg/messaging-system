@@ -266,7 +266,7 @@ public class MessageServiceImplementation implements MessageService {
         forwarded.setChat(targetChat);
 
         forwarded.setSenderId(userId);
-        forwarded.setSenderUsername(sender.getUsername());   // ✅ VERY IMPORTANT
+        forwarded.setSenderUsername(sender.getUsername());   
 
         forwarded.setContent(original.getContent());
         forwarded.setMessageType(original.getMessageType());
