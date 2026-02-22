@@ -9,6 +9,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -52,7 +53,7 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 userId = jwtService.extractUserId(token);
             } catch (Exception e) {
-                System.out.println("JWT parsing error: " + e.getMessage());
+                throw new BadCredentialsException("Invalid or expired JWT token");
             }
         }
 
@@ -77,10 +78,10 @@ public class JwtFilter extends OncePerRequestFilter {
 
                     System.out.println("✅ Authenticated user: " + user.getUsername());
                 } else {
-                    System.out.println("❌ Invalid or expired token for user ID: " + userId);
+                    throw new BadCredentialsException("Invalid or expired JWT token" + " for userId: " + userId);
                 }
             } else {
-                System.out.println("❌ No user found for token userId: " + userId);
+                throw new BadCredentialsException("Invalid or expired JWT token" + " for userId: " + userId);
             }
         }
 
