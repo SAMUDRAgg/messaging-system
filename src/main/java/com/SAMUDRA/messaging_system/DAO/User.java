@@ -1,5 +1,6 @@
 package com.SAMUDRA.messaging_system.DAO;
 
+import com.SAMUDRA.messaging_system.enums.Role;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -29,17 +30,34 @@ public class User {
     // ✅ New field for profile picture
     @Column(name = "profile_pic_url")
     private String profilePicUrl;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
 
     public User() {}
 
-    public User(String username, String password, String email, String profilePicUrl) {
+    public User(String username, String password, String email, String profilePicUrl, Role role) {
         this.username = username;
         this.password = password;
         this.email = email;
         this.profilePicUrl = profilePicUrl;
+        this.role = role;
     }
 
     // Getters & Setters
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

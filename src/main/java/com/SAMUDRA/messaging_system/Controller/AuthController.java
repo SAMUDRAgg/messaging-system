@@ -8,6 +8,7 @@ import com.SAMUDRA.messaging_system.DTO.RegisterRequest;
 import com.SAMUDRA.messaging_system.DTO.RegisterResponse;
 import com.SAMUDRA.messaging_system.Service.JwtService;
 import com.SAMUDRA.messaging_system.Service.UserService;
+import com.SAMUDRA.messaging_system.enums.Role;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -39,6 +40,7 @@ public class AuthController {
         user.setPassword(request.getPassword()); // BCrypt should be applied in service
         user.setProfilePicUrl(request.getProfilePicUrl());
 
+        user.setRole(Role.USER);
         User savedUser = userService.addUser(user);
 
         RegisterResponse response = new RegisterResponse(
@@ -74,7 +76,8 @@ public class AuthController {
             String token = jwtService.generateToken(
                     user.getId(),
                     user.getUsername(),
-                    user.getEmail()
+                    user.getEmail(),
+                    user.getRole().name()
             );
 
             LoginResponse response = new LoginResponse(

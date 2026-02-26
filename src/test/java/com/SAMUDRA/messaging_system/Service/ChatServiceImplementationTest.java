@@ -62,6 +62,7 @@ class ChatServiceImplementationTest {
 
     @BeforeEach
     void setUp() {
+
         user1 = new User();
         user1.setId(1L);
         user1.setUsername("alice");
@@ -69,6 +70,7 @@ class ChatServiceImplementationTest {
         user2 = new User();
         user2.setId(2L);
         user2.setUsername("bob");
+
     }
 
     @Test
