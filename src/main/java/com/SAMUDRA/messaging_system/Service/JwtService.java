@@ -1,6 +1,7 @@
 package com.SAMUDRA.messaging_system.Service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
@@ -25,13 +26,7 @@ public class JwtService {
         return Long.parseLong(extractClaim(token, Claims::getSubject));
     }
 
-    public String extractUsername(String token) {
-        return extractAllClaims(token).get("username", String.class);
-    }
 
-    public String extractEmail(String token) {
-        return extractAllClaims(token).get("email", String.class);
-    }
 
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
@@ -64,9 +59,13 @@ public class JwtService {
 
     // ✅ Validate token
     public boolean validateToken(String token, UserDetails userDetails) {
-        Long extractedUserId = extractUserId(token);
-        Long userDetailsId = ((UserPrincipal) userDetails).getUser().getId();
-        return extractedUserId.equals(userDetailsId) && !isTokenExpired(token);
+        try {
+            Long extractedUserId = extractUserId(token);
+            Long userDetailsId = ((UserPrincipal) userDetails).getUser().getId();
+            return extractedUserId.equals(userDetailsId) && !isTokenExpired(token);
+        } catch (JwtException e) {
+            return false;
+        }
     }
 
     private boolean isTokenExpired(String token) {
@@ -77,7 +76,7 @@ public class JwtService {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    private Key getSigningKey() {
+    Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(SECRET_KEY);
         return Keys.hmacShaKeyFor(keyBytes);
     }
