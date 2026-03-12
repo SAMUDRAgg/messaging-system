@@ -6,12 +6,34 @@ public class UserProfileResponse {
     private String username;
     private String email;
     private String profilePicUrl;
+    private String role;
 
-    public UserProfileResponse(Long id, String username, String email, String profilePicUrl) {
+    public UserProfileResponse(Long id, String username, String email, String profilePicUrl, String role) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.profilePicUrl = profilePicUrl;
+        this.role = role;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getProfilePicUrl() {
+        return profilePicUrl;
+    }
+
+    public String getRole() {
+        return role;
     }
 
     public void setId(Long id) {
@@ -30,9 +52,7 @@ public class UserProfileResponse {
         this.profilePicUrl = profilePicUrl;
     }
 
-    public Long getId() { return id; }
-    public String getUsername() { return username; }
-    public String getEmail() { return email; }
-    public String getProfilePicUrl() { return profilePicUrl; }
-
+    public void setRole(String role) {
+        this.role = role;
+    }
 }

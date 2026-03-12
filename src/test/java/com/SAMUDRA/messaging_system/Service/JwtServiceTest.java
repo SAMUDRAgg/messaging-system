@@ -34,12 +34,7 @@ class JwtServiceTest {
 
     Key key = Keys.hmacShaKeyFor(keyBytes);
 
-    String expiredToken = Jwts.builder()
-            .setSubject("1")
-            .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
-            .setExpiration(new Date(System.currentTimeMillis() - 1000)) // already expired
-            .signWith(key, SignatureAlgorithm.HS256)
-            .compact();
+     private String expiredToken;
 
     @BeforeEach
     void setUp() {
@@ -62,6 +57,13 @@ class JwtServiceTest {
                 user.getRole().toString()
 
         );
+
+        expiredToken = Jwts.builder()
+                .setSubject("1")
+                .setIssuedAt(new Date(System.currentTimeMillis() - 1000 * 60 * 60))
+                .setExpiration(new Date(System.currentTimeMillis() - 1000)) // already expired
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
 
     }
 
@@ -200,6 +202,46 @@ class JwtServiceTest {
 
 
 
+    @Test
+    void validateToken_shouldReturnFalse_whenTokenSignatureInvalid() {
+
+        // create a token with a different secret key
+        byte[] otherKeyBytes = Decoders.BASE64.decode(
+                "An0th3rSup3rS3cur3JWTK3yF0rT3st1ng123456789"
+        );
+
+        Key otherKey = Keys.hmacShaKeyFor(otherKeyBytes);
+
+        String tamperedToken = Jwts.builder()
+                .setSubject("1")
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 10))
+                .signWith(otherKey, SignatureAlgorithm.HS256)
+                .compact();
+
+        UserPrincipal userPrincipal = new UserPrincipal(user);
+
+        boolean result = jwtService.validateToken(tamperedToken, userPrincipal);
+
+        assertFalse(result);
+    }
+
+    @Test
+    void extractUserId_shouldThrowException_whenTokenNull() {
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            jwtService.extractUserId(null);
+        });
+    }
+    @Test
+    void extractUserId_shouldThrowException_whenTokenEmpty() {
+
+        String emptyToken = "";
+
+        assertThrows(IllegalArgumentException.class, () -> {
+            jwtService.extractUserId(emptyToken);
+        });
+    }
 
 
 
