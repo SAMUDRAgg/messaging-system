@@ -7,6 +7,8 @@ import com.SAMUDRA.messaging_system.DTO.UserSearchResponse;
 import com.SAMUDRA.messaging_system.DTO.UserUpdateRequest;
 import com.SAMUDRA.messaging_system.Mapper.UserMapper;
 import com.SAMUDRA.messaging_system.Service.UserService;
+
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -19,10 +21,9 @@ import java.util.stream.Collectors;
 public class UserController {
 
     private final UserService userService;
-
     private final UserMapper userMapper;
 
-    public UserController(UserService userService , UserMapper userMapper) {
+    public UserController(UserService userService, UserMapper userMapper) {
         this.userService = userService;
         this.userMapper = userMapper;
     }
@@ -32,6 +33,10 @@ public class UserController {
     public ResponseEntity<UserProfileResponse> getProfile(
             @AuthenticationPrincipal UserPrincipal principal
     ) {
+        if (principal == null) {
+            throw new RuntimeException("Unauthorized");
+        }
+
         User user = principal.getUser();
         return ResponseEntity.ok(userMapper.mapToProfile(user));
     }
@@ -40,9 +45,13 @@ public class UserController {
     @PutMapping("/profile")
     public ResponseEntity<UserProfileResponse> updateProfile(
             @AuthenticationPrincipal UserPrincipal principal,
-            @RequestBody UserUpdateRequest request
+            @Valid @RequestBody UserUpdateRequest request
     ) {
+        if (principal == null) {
+            throw new RuntimeException("Unauthorized");
+        }
 
+        // ✅ Keep your logic (no change in structure)
         User updatedUser = new User();
         updatedUser.setUsername(request.getUsername());
         updatedUser.setEmail(request.getEmail());
@@ -62,7 +71,6 @@ public class UserController {
     public ResponseEntity<List<UserSearchResponse>> searchUsers(
             @RequestParam String query
     ) {
-
         List<UserSearchResponse> response =
                 userService.searchUser(query)
                         .stream()
@@ -75,6 +83,4 @@ public class UserController {
 
         return ResponseEntity.ok(response);
     }
-
-
 }
